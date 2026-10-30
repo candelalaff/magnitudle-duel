@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Magnitudle Duel</title>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<style>
+:root{--bg:#f4f7f4;--card:#fff;--tx:#1f2a1f;--mut:#6b776b;--bd:#dde7dd;--a:#3d663d;--b:#0f8a6a;--btn:#fff;--gold:#fff3d1;--goldtx:#7a4b00;--warn:#fff3d1}
+@media (prefers-color-scheme:dark){:root{--bg:#141a14;--card:#1d261d;--tx:#e8efe8;--mut:#93a193;--bd:#2f3d2f;--a:#7fc27f;--b:#4fd1a5;--btn:#0d140d;--gold:#3a2f10;--goldtx:#ffd98a;--warn:#3a2f10}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px}
+.wrap{max-width:860px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;margin:0}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px;margin-top:14px}
+.mut{color:var(--mut);font-size:13px}
+label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
+input{width:100%;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font:inherit}
+button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:10px 14px;background:var(--a);color:var(--btn);cursor:pointer}
+button.sec{background:transparent;color:var(--tx);border:1px solid var(--bd)}
+button.wa{background:#25d366;color:#04230f}
+.hidden{display:none!important}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.big{font-size:30px;font-weight:800}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:460px}
+th,td{padding:7px 8px;text-align:left;font-size:13px}
+th{color:var(--mut);font-weight:600;border-bottom:1px solid var(--bd)}
+tr.day td{background:var(--bg);font-weight:700;padding-top:10px}
+td input{width:84px;padding:6px 8px}
+.win{background:var(--gold);color:var(--goldtx);border:2px solid #e0a800;text-align:center}
+.win h2{font-size:26px;margin:6px 0}
+.dirty{background:var(--warn);color:var(--goldtx);border:1px solid #e0a800;border-radius:12px;padding:12px;margin-top:14px}
+.arch{border:1px solid var(--bd);border-radius:10px;padding:10px;margin-top:8px}
+.p1{color:var(--a)}.p2{color:var(--b)}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#222;color:#fff;padding:9px 14px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}
+#toast.on{opacity:1}
+@media(max-width:520px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎯 Magnitudle Duel</h1>
+  <div class="mut">Duelo semanal de lunes a viernes · 3 categorías por día · el link guarda todo</div>
+
+  <!-- HOME -->
+  <div id="home" class="card">
+    <h2>Crear duelo</h2>
+    <div class="grid">
+      <div><label>Jugador 1</label><input id="n1" placeholder="Tu nombre" maxlength="24"></div>
+      <div><label>Jugador 2</label><input id="n2" placeholder="Nombre de tu rival" maxlength="24"></div>
+    </div>
+    <label>Nombre del duelo</label><input id="rn" placeholder="Ej: Duelo de la oficina" maxlength="40">
+    <p><button onclick="createRoom()">Crear duelo</button></p>
+    <p class="mut">¿Te pasaron un link? Abrilo directamente: trae todos los resultados.</p>
+  </div>
+
+  <!-- ROOM -->
+  <div id="room" class="hidden">
+    <div class="card row"><div><h2 id="title"></h2><div class="mut" id="sub"></div></div>
+      <button class="sec" onclick="leave()">Nuevo duelo</button></div>
+
+    <div id="dirty" class="dirty hidden">
+      <strong>⚠️ Hay cambios sin compartir.</strong> Mandale el link actualizado a tu rival para que vea tus puntajes.
+      <div class="row" style="margin-top:10px;justify-content:flex-start">
+        <button class="wa" onclick="shareWA()">Enviar por WhatsApp</button>
+        <button onclick="copyLink()">Copiar link</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card"><div class="mut" id="c1n"></div><div class="big p1" id="a1">–</div><div class="mut">promedio de promedios · <span id="d1">0</span>/5 días</div></div>
+      <div class="card"><div class="mut" id="c2n"></div><div class="big p2" id="a2">–</div><div class="mut">promedio de promedios · <span id="d2">0</span>/5 días</div></div>
+    </div>
+
+    <div id="winner" class="card win hidden"><div>🏆 Resultado final de la semana</div><h2 id="wt"></h2><p id="wd"></p><button onclick="boom()">🎊 Más papelitos</button></div>
+
+    <div class="card">
+      <h2>Registro diario</h2><div class="mut">Cargá solo tus puntajes. El promedio del día sale de las 3 categorías; el viernes se promedian los días.</div>
+      <div class="scroll"><table><thead><tr><th>Día / categoría</th><th id="th1"></th><th id="th2"></th><th>Líder</th></tr></thead><tbody id="tb"></tbody></table></div>
+    </div>
+
+    <div class="card">
+      <div class="row"><div><h2>Historial</h2><div class="mut">Semanas archivadas</div></div>
+        <div class="row"><button onclick="archiveWeek()">Archivar semana</button><button class="sec" onclick="resetWeek()">Reiniciar</button></div></div>
+      <div id="arch"></div>
+    </div>
+
+    <div class="card row">
+      <div><strong>Compartir</strong><div class="mut">Siempre pasá el link más reciente.</div></div>
+      <div class="row"><button class="wa" onclick="shareWA()">WhatsApp</button><button onclick="copyLink()">Copiar link</button></div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const DAYS=[['Lunes'],['Martes'],['Miércoles'],['Jueves'],['Viernes']];
+const CATS=['Size It Up','Geography','Pop Culture'];
+const idx=(d,c,p)=>d*6+c*2+p;           // 30 casilleros: día, categoría, jugador
+let S=null,built=false,celebrated=false;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2200)}
+
+/* ---------- Estado <-> link ---------- */
+function enc(o){const b=new TextEncoder().encode(JSON.stringify(o));let s='';b.forEach(x=>s+=String.fromCharCode(x));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+function dec(t){try{t=t.replace(/-/g,'+').replace(/_/g,'/');const s=atob(t),b=Uint8Array.from(s,c=>c.charCodeAt(0));return JSON.parse(new TextDecoder().decode(b))}catch(e){return null}}
+function emptyState(r,a,b){return{r,a,b,s:Array(30).fill(''),h:[]}}
+function valid(o){return o&&typeof o.a==='string'&&typeof o.b==='string'&&Array.isArray(o.s)&&o.s.length===30&&Array.isArray(o.h)}
+function link(){return location.href.split('#')[0]+'#d='+enc(S)}
+function persist(dirty){
+  history.replaceState(null,'',link());
+  try{localStorage.setItem('magnitudle_last',enc(S))}catch(e){}
+  if(dirty)$('dirty').classList.remove('hidden');
+}
+function load(){
+  const m=location.hash.match(/^#d=(.+)$/);
+  let o=m?dec(m[1]):null;
+  if(!valid(o)){try{const l=localStorage.getItem('magnitudle_last');o=l?dec(l):null}catch(e){}}
+  if(valid(o)){S=o;built=false;celebrated=false;show();render();return true}
+  S=null;$('home').classList.remove('hidden');$('room').classList.add('hidden');return false
+}
+function show(){$('home').classList.add('hidden');$('room').classList.remove('hidden')}
+
+/* ---------- Cálculos ---------- */
+const num=v=>v===''||v===null||v===undefined||isNaN(v)?null:parseFloat(v);
+const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+const fmt=n=>n===null?'–':(Math.round(n*100)/100).toString();
+const dayAvg=(d,p)=>mean([0,1,2].map(c=>num(S.s[idx(d,c,p)])).filter(v=>v!==null));
+function weekAvg(p){const a=[0,1,2,3,4].map(d=>dayAvg(d,p)).filter(v=>v!==null);return{avg:mean(a),days:a.length}}
+
+/* ---------- Acciones ---------- */
+function createRoom(){
+  const a=$('n1').value.trim(),b=$('n2').value.trim();
+  if(!a||!b){toast('Completá los dos nombres');return}
+  S=emptyState($('rn').value.trim()||'Duelo semanal',a,b);
+  built=false;show();render();persist(false);toast('Duelo creado ✓');
+}
+function edit(i,v){S.s[i]=v;persist(true);render()}
+function archiveWeek(){
+  const w1=weekAvg(0),w2=weekAvg(1);
+  if(w1.avg===null&&w2.avg===null){toast('No hay puntajes para archivar');return}
+  const x=w1.avg??-1,y=w2.avg??-1;
+  const w=x>y?S.a:y>x?S.b:'',l=x>y?S.b:S.a;
+  S.h=[{d:new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}),x:fmt(w1.avg),y:fmt(w2.avg),w,l},...S.h].slice(0,12);
+  S.s=Array(30).fill('');built=false;persist(true);render();toast('Semana archivada');
+}
+function resetWeek(){if(!confirm('¿Reiniciar los puntajes de la semana actual?'))return;S.s=Array(30).fill('');persist(true);render()}
+function leave(){if(!confirm('¿Salir de este duelo y crear uno nuevo? (el link actual sigue sirviendo)'))return;
+  history.replaceState(null,'',location.href.split('#')[0]);try{localStorage.removeItem('magnitudle_last')}catch(e){}
+  S=null;$('dirty').classList.add('hidden');$('home').classList.remove('hidden');$('room').classList.add('hidden')}
+function copyLink(){
+  const u=link();
+  const ok=()=>{toast('Link copiado ✓');$('dirty').classList.add('hidden')};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(u).then(ok,()=>{prompt('Copiá el link:',u);ok()});
+  else{prompt('Copiá el link:',u);ok()}
+}
+function shareWA(){
+  const u=link();
+  window.open('https://wa.me/?text='+encodeURIComponent('🎯 '+S.r+' — resultados actualizados:\n'+u),'_blank');
+  $('dirty').classList.add('hidden');
+}
+function boom(){
+  if(typeof confetti!=='function')return;
+  const end=Date.now()+2200;
+  (function f(){confetti({particleCount:6,angle:60,spread:60,origin:{x:0}});confetti({particleCount:6,angle:120,spread:60,origin:{x:1}});if(Date.now()<end)requestAnimationFrame(f)})();
+  confetti({particleCount:160,spread:100,origin:{y:.6}});
+}
+
+/* ---------- Render ---------- */
+function build(){
+  const tb=$('tb');tb.innerHTML='';
+  DAYS.forEach(([dn],d)=>{
+    tb.insertAdjacentHTML('beforeend',`<tr class="day"><td colspan="3">${dn}</td><td id="da${d}" class="mut" style="text-align:right"></td></tr>`);
+    CATS.forEach((cn,c)=>tb.insertAdjacentHTML('beforeend',`<tr><td>${cn}</td>
+      <td><input type="number" step="any" inputmode="decimal" data-i="${idx(d,c,0)}"></td>
+      <td><input type="number" step="any" inputmode="decimal" data-i="${idx(d,c,1)}"></td>
+      <td id="l${d}${c}" class="mut"></td></tr>`));
+  });
+  tb.querySelectorAll('input').forEach(i=>i.addEventListener('change',()=>edit(+i.dataset.i,i.value)));
+  built=true;
+}
+function render(){
+  if(!S)return;
+  $('title').textContent=S.r;$('sub').textContent=S.a+' vs '+S.b;
+  ['c1n','th1'].forEach(i=>$(i).textContent=S.a);['c2n','th2'].forEach(i=>$(i).textContent=S.b);
+  if(!built)build();
+  document.querySelectorAll('#tb input').forEach(i=>{if(document.activeElement!==i)i.value=S.s[+i.dataset.i]});
+  for(let d=0;d<5;d++){
+    $('da'+d).textContent=`Prom. día: ${S.a} ${fmt(dayAvg(d,0))} · ${S.b} ${fmt(dayAvg(d,1))}`;
+    for(let c=0;c<3;c++){const v1=num(S.s[idx(d,c,0)]),v2=num(S.s[idx(d,c,1)]);
+      $('l'+d+c).textContent=v1===null||v2===null?'':v1>v2?S.a:v2>v1?S.b:'Empate'}
+  }
+  const w1=weekAvg(0),w2=weekAvg(1);
+  $('a1').textContent=fmt(w1.avg);$('a2').textContent=fmt(w2.avg);$('d1').textContent=w1.days;$('d2').textContent=w2.days;
+
+  const full=p=>[0,1,2].every(c=>num(S.s[idx(4,c,p)])!==null);
+  const done=full(0)&&full(1);
+  $('winner').classList.toggle('hidden',!done);
+  if(done){
+    const a=w1.avg,b=w2.avg;
+    if(a===b){$('wt').textContent='🤝 ¡Empate! Pagan los dos la Heineken 🍺';$('wd').textContent='Ambos terminaron con '+fmt(a)+' de promedio semanal.'}
+    else{const win=a>b?S.a:S.b,lose=a>b?S.b:S.a;
+      $('wt').textContent='🎉 ¡'+win+' gana la semana!';
+      $('wd').textContent=`${win} ${fmt(Math.max(a,b))} vs ${lose} ${fmt(Math.min(a,b))}. Ya sabés: ${lose} paga la Heineken 🍺`}
+    if(!celebrated){celebrated=true;boom()}
+  }else celebrated=false;
+  $('arch').innerHTML=S.h.length?S.h.map((x,i)=>`<div class="arch"><strong>Semana ${S.h.length-i}</strong> <span class="mut">· ${esc(x.d)}</span><br>
+    ${esc(S.a)}: <b class="p1">${esc(x.x)}</b> vs ${esc(S.b)}: <b class="p2">${esc(x.y)}</b><br>
+    ${x.w?`🏆 Ganó ${esc(x.w)} · ${esc(x.l)} paga la Heineken 🍺`:'🤝 Empate'}</div>`).join(''):'<p class="mut">Todavía no hay semanas archivadas.</p>';
+}
+
+window.addEventListener('hashchange',load);
+load();
+</script>
+</body>
+</html>
