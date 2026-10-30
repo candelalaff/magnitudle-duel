@@ -42,7 +42,7 @@ td input{width:84px;padding:6px 8px}
 <body>
 <div class="wrap">
   <h1>🎯 Magnitudle Duel</h1>
-  <div class="mut">Duelo semanal de lunes a viernes · 3 categorías por día · el link guarda todo</div>
+  <div class="mut">Duelo semanal de lunes a viernes · 3 o 4 categorías por día · el link guarda todo</div>
 
   <!-- HOME -->
   <div id="home" class="card">
@@ -77,7 +77,7 @@ td input{width:84px;padding:6px 8px}
     <div id="winner" class="card win hidden"><div>🏆 Resultado final de la semana</div><h2 id="wt"></h2><p id="wd"></p><button onclick="boom()">🎊 Más papelitos</button></div>
 
     <div class="card">
-      <h2>Registro diario</h2><div class="mut">Cargá solo tus puntajes. El promedio del día sale de las 3 categorías; el viernes se promedian los días.</div>
+      <h2>Registro diario</h2><div class="mut">Cargá solo tus puntajes. El promedio del día sale de las categorías que jugaron (3 o 4, las vacías no cuentan); el viernes se promedian los días.</div>
       <div class="scroll"><table><thead><tr><th>Día / categoría</th><th id="th1"></th><th id="th2"></th><th>Líder</th></tr></thead><tbody id="tb"></tbody></table></div>
     </div>
 
@@ -97,8 +97,9 @@ td input{width:84px;padding:6px 8px}
 
 <script>
 const DAYS=[['Lunes'],['Martes'],['Miércoles'],['Jueves'],['Viernes']];
-const CATS=['Size It Up','Geography','Pop Culture'];
-const idx=(d,c,p)=>d*6+c*2+p;           // 30 casilleros: día, categoría, jugador
+const CATS=['Size It Up','Geography','Pop Culture','Weigh It Up'];
+const NC=CATS.length,NS=NC*10; // 4 categorías x 2 jugadores x 5 días = 40 casilleros
+const idx=(d,c,p)=>d*NC*2+c*2+p;       // día, categoría, jugador
 let S=null,built=false,celebrated=false;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -107,8 +108,8 @@ function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clear
 /* ---------- Estado <-> link ---------- */
 function enc(o){const b=new TextEncoder().encode(JSON.stringify(o));let s='';b.forEach(x=>s+=String.fromCharCode(x));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function dec(t){try{t=t.replace(/-/g,'+').replace(/_/g,'/');const s=atob(t),b=Uint8Array.from(s,c=>c.charCodeAt(0));return JSON.parse(new TextDecoder().decode(b))}catch(e){return null}}
-function emptyState(r,a,b){return{r,a,b,s:Array(30).fill(''),h:[]}}
-function valid(o){return o&&typeof o.a==='string'&&typeof o.b==='string'&&Array.isArray(o.s)&&o.s.length===30&&Array.isArray(o.h)}
+function emptyState(r,a,b){return{r,a,b,s:Array(NS).fill(''),h:[]}}
+function valid(o){return o&&typeof o.a==='string'&&typeof o.b==='string'&&Array.isArray(o.s)&&(o.s.length===30||o.s.length===NS)&&Array.isArray(o.h)}
 function link(){return location.href.split('#')[0]+'#d='+enc(S)}
 function persist(dirty){
   history.replaceState(null,'',link());
@@ -119,6 +120,7 @@ function load(){
   const m=location.hash.match(/^#d=(.+)$/);
   let o=m?dec(m[1]):null;
   if(!valid(o)){try{const l=localStorage.getItem('magnitudle_last');o=l?dec(l):null}catch(e){}}
+  if(valid(o)&&o.s.length===30){const n=Array(NS).fill('');for(let d=0;d<5;d++)for(let k=0;k<6;k++)n[d*8+k]=o.s[d*6+k];o.s=n}
   if(valid(o)){S=o;built=false;celebrated=false;show();render();return true}
   S=null;$('home').classList.remove('hidden');$('room').classList.add('hidden');return false
 }
@@ -128,7 +130,7 @@ function show(){$('home').classList.add('hidden');$('room').classList.remove('hi
 const num=v=>v===''||v===null||v===undefined||isNaN(v)?null:parseFloat(v);
 const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
 const fmt=n=>n===null?'–':(Math.round(n*100)/100).toString();
-const dayAvg=(d,p)=>mean([0,1,2].map(c=>num(S.s[idx(d,c,p)])).filter(v=>v!==null));
+const dayAvg=(d,p)=>mean(CATS.map((_,c)=>num(S.s[idx(d,c,p)])).filter(v=>v!==null));
 function weekAvg(p){const a=[0,1,2,3,4].map(d=>dayAvg(d,p)).filter(v=>v!==null);return{avg:mean(a),days:a.length}}
 
 /* ---------- Acciones ---------- */
@@ -145,9 +147,9 @@ function archiveWeek(){
   const x=w1.avg??-1,y=w2.avg??-1;
   const w=x>y?S.a:y>x?S.b:'',l=x>y?S.b:S.a;
   S.h=[{d:new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}),x:fmt(w1.avg),y:fmt(w2.avg),w,l},...S.h].slice(0,12);
-  S.s=Array(30).fill('');built=false;persist(true);render();toast('Semana archivada');
+  S.s=Array(NS).fill('');built=false;persist(true);render();toast('Semana archivada');
 }
-function resetWeek(){if(!confirm('¿Reiniciar los puntajes de la semana actual?'))return;S.s=Array(30).fill('');persist(true);render()}
+function resetWeek(){if(!confirm('¿Reiniciar los puntajes de la semana actual?'))return;S.s=Array(NS).fill('');persist(true);render()}
 function leave(){if(!confirm('¿Salir de este duelo y crear uno nuevo? (el link actual sigue sirviendo)'))return;
   history.replaceState(null,'',location.href.split('#')[0]);try{localStorage.removeItem('magnitudle_last')}catch(e){}
   S=null;$('dirty').classList.add('hidden');$('home').classList.remove('hidden');$('room').classList.add('hidden')}
@@ -190,13 +192,14 @@ function render(){
   document.querySelectorAll('#tb input').forEach(i=>{if(document.activeElement!==i)i.value=S.s[+i.dataset.i]});
   for(let d=0;d<5;d++){
     $('da'+d).textContent=`Prom. día: ${S.a} ${fmt(dayAvg(d,0))} · ${S.b} ${fmt(dayAvg(d,1))}`;
-    for(let c=0;c<3;c++){const v1=num(S.s[idx(d,c,0)]),v2=num(S.s[idx(d,c,1)]);
+    for(let c=0;c<NC;c++){const v1=num(S.s[idx(d,c,0)]),v2=num(S.s[idx(d,c,1)]);
       $('l'+d+c).textContent=v1===null||v2===null?'':v1>v2?S.a:v2>v1?S.b:'Empate'}
   }
   const w1=weekAvg(0),w2=weekAvg(1);
   $('a1').textContent=fmt(w1.avg);$('a2').textContent=fmt(w2.avg);$('d1').textContent=w1.days;$('d2').textContent=w2.days;
 
-  const full=p=>[0,1,2].every(c=>num(S.s[idx(4,c,p)])!==null);
+  // el viernes cuenta como completo con al menos 3 categorías cargadas por jugador (se puede jugar 3 o 4)
+  const full=p=>CATS.filter((_,c)=>num(S.s[idx(4,c,p)])!==null).length>=3;
   const done=full(0)&&full(1);
   $('winner').classList.toggle('hidden',!done);
   if(done){
